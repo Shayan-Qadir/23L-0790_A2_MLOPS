@@ -35,6 +35,7 @@ instance/
 *.sqlite3
 
 # PDF specification (optional keep or ignore)
+reports/figures/.cache/
 # Environments
 .venv/
 env/
@@ -72,6 +73,7 @@ instance/
 *.sqlite3
 
 # PDF specification (optional keep or ignore)
+reports/figures/.cache/
 Assignment 2.pdf
 
 # OS generated

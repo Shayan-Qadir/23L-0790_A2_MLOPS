@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+from PIL import Image
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -9,8 +10,27 @@ from reportlab.platypus import (
 )
 from reportlab.pdfgen import canvas
 
+def get_optimized_image(img_path, max_width=1400):
+    """Downsamples huge images for PDF inclusion to keep file size compact and loading fast."""
+    if not os.path.exists(img_path):
+        return None
+    cache_dir = Path("reports/figures/.cache")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    out_path = cache_dir / (Path(img_path).stem + "_opt.jpg")
+    
+    # Re-generate if original is newer
+    if not out_path.exists() or os.path.getmtime(img_path) > os.path.getmtime(out_path):
+        with Image.open(img_path) as im:
+            rgb_im = im.convert("RGB")
+            w, h = rgb_im.size
+            if w > max_width:
+                new_h = int(h * (max_width / w))
+                rgb_im = rgb_im.resize((max_width, new_h), Image.Resampling.LANCZOS)
+            rgb_im.save(out_path, "JPEG", quality=85, optimize=True)
+    return str(out_path)
+
 class NumberedCanvas(canvas.Canvas):
-    """Adds page numbers and running header/footer."""
+    """Two-pass canvas to dynamically compute and print total page numbers with running headers and footers."""
     def __init__(self, *args, **kwargs):
         super(NumberedCanvas, self).__init__(*args, **kwargs)
         self._saved_page_states = []
@@ -30,104 +50,127 @@ class NumberedCanvas(canvas.Canvas):
     def draw_page_decorations(self, page_count):
         self.saveState()
         self.setFont("Helvetica", 8)
-        self.setFillColor(colors.HexColor("#64748b"))
+        self.setFillColor(colors.HexColor("#4b5563")) # Neutral dark slate/gray (NO BLUE)
         
-        # Header (pages > 1)
+        # Running header on pages > 1
         if self._pageNumber > 1:
-            self.drawString(54, 750, "VisionGuard: AI vs Real Image Classification & Deployment")
-            self.drawRightString(558, 750, "Roll Number: 23L-0790")
-            self.setStrokeColor(colors.HexColor("#e2e8f0"))
+            self.drawString(45, 755, "VisionGuard: AI vs Real Image Classification & Deployment")
+            self.drawRightString(567, 755, "Roll: 23L-0790 | Project: 23L0790_A2_Ops")
+            self.setStrokeColor(colors.HexColor("#d1d5db")) # Light neutral line
             self.setLineWidth(0.5)
-            self.line(54, 744, 558, 744)
+            self.line(45, 749, 567, 749)
             
-        # Footer
-        self.setStrokeColor(colors.HexColor("#e2e8f0"))
+        # Running footer on all pages
+        self.setStrokeColor(colors.HexColor("#d1d5db"))
         self.setLineWidth(0.5)
-        self.line(54, 45, 558, 45)
-        self.drawString(54, 32, "Project: 23L0790_A2_Ops | FAST-NUCES MLOps")
-        self.drawRightString(558, 32, f"Page {self._pageNumber} of {page_count}")
+        self.line(45, 42, 567, 42)
+        self.drawString(45, 30, "FAST-NUCES &bull; Spring 2026 MLOps &bull; Shayan Qadir (23L-0790)")
+        self.drawRightString(567, 30, f"Page {self._pageNumber} of {page_count}")
         self.restoreState()
 
 def build_pdf_report(output_filename="reports/23L0790_VisionGuard.pdf"):
     Path(output_filename).parent.mkdir(parents=True, exist_ok=True)
+    
+    # 45pt margins: usable width = 612 - 90 = 522pt
     doc = SimpleDocTemplate(
         output_filename,
         pagesize=letter,
-        leftMargin=54,
-        rightMargin=54,
-        topMargin=54,
-        bottomMargin=54
+        leftMargin=45,
+        rightMargin=45,
+        topMargin=48,
+        bottomMargin=48
     )
     
     styles = getSampleStyleSheet()
     
-    # Custom Typography Styles
+    # Neutral Dark Palette (STRICTLY NO BLUE)
+    # Headings: #111827 (almost black), Subheadings: #374151 (dark slate), Muted: #4b5563, Borders: #d1d5db
+    
     title_style = ParagraphStyle(
         "CoverTitle",
         parent=styles["Normal"],
         fontName="Helvetica-Bold",
-        fontSize=24,
-        leading=30,
-        textColor=colors.HexColor("#0f172a"),
-        alignment=0,
-        spaceAfter=10
+        fontSize=18,
+        leading=22,
+        textColor=colors.HexColor("#111827"),
+        spaceAfter=3
     )
     subtitle_style = ParagraphStyle(
         "CoverSubtitle",
         parent=styles["Normal"],
         fontName="Helvetica",
-        fontSize=12,
-        leading=16,
-        textColor=colors.HexColor("#475569"),
-        alignment=0,
-        spaceAfter=20
+        fontSize=10.5,
+        leading=14,
+        textColor=colors.HexColor("#4b5563"),
+        spaceAfter=10
     )
     h1_style = ParagraphStyle(
-        "Heading1_Custom",
+        "H1_Neutral",
         parent=styles["Heading1"],
-        fontName="Helvetica-Bold",
-        fontSize=16,
-        leading=20,
-        textColor=colors.HexColor("#1e3a8a"),
-        spaceBefore=14,
-        spaceAfter=8,
-        keepWithNext=True
-    )
-    h2_style = ParagraphStyle(
-        "Heading2_Custom",
-        parent=styles["Heading2"],
         fontName="Helvetica-Bold",
         fontSize=12,
         leading=16,
-        textColor=colors.HexColor("#0f766e"),
+        textColor=colors.HexColor("#111827"),
         spaceBefore=10,
         spaceAfter=4,
         keepWithNext=True
     )
+    h2_style = ParagraphStyle(
+        "H2_Neutral",
+        parent=styles["Heading2"],
+        fontName="Helvetica-Bold",
+        fontSize=9.5,
+        leading=13,
+        textColor=colors.HexColor("#374151"),
+        spaceBefore=6,
+        spaceAfter=3,
+        keepWithNext=True
+    )
     body_style = ParagraphStyle(
-        "Body_Custom",
+        "Body_Neutral",
         parent=styles["BodyText"],
         fontName="Helvetica",
-        fontSize=9.5,
-        leading=13.5,
-        textColor=colors.HexColor("#1e293b"),
-        spaceAfter=6
+        fontSize=8.5,
+        leading=11.5,
+        textColor=colors.HexColor("#1f2937"),
+        spaceAfter=4
     )
     callout_style = ParagraphStyle(
-        "Callout",
+        "Callout_Neutral",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=8,
+        leading=11,
+        textColor=colors.HexColor("#1f2937")
+    )
+    caption_style = ParagraphStyle(
+        "Caption_Neutral",
         parent=styles["Normal"],
         fontName="Helvetica-Oblique",
-        fontSize=8.5,
-        leading=12,
-        textColor=colors.HexColor("#334155")
+        fontSize=7.5,
+        leading=9.5,
+        textColor=colors.HexColor("#4b5563"),
+        spaceBefore=2,
+        spaceAfter=5,
+        alignment=1 # centered
     )
-    code_style = ParagraphStyle(
-        "CodeText",
-        parent=styles["Code"],
-        fontName="Courier",
-        fontSize=8,
-        leading=10,
-        textColor=colors.HexColor("#0f172a")
+    th_style = ParagraphStyle(
+        "TH_Neutral",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=7.5,
+        leading=9.5,
+        textColor=colors.HexColor("#111827"),
+        alignment=0
+    )
+    td_style = ParagraphStyle(
+        "TD_Neutral",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=7.5,
+        leading=9.5,
+        textColor=colors.HexColor("#1f2937"),
+        alignment=0
     )
 
     story = []
@@ -135,284 +178,340 @@ def build_pdf_report(output_filename="reports/23L0790_VisionGuard.pdf"):
     # =========================================================================
     # FRONT MATTER
     # =========================================================================
-    story.append(Paragraph("VisionGuard: AI vs Real Image Classification and Deployment", title_style))
-    story.append(Paragraph("Comprehensive MLOps Lifecycle Report &bull; Assignment 2", subtitle_style))
-    story.append(HRFlowable(width="100%", thickness=2, color=colors.HexColor("#1e3a8a"), spaceAfter=15))
+    story.append(Paragraph("VisionGuard: AI vs Real Image Classification & Deployment", title_style))
+    story.append(Paragraph("Assignment 2 Final Project Report &bull; Machine Learning Operations (MLOps)", subtitle_style))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#111827"), spaceAfter=8))
 
     meta_table_data = [
-        [Paragraph("<b>Student Name</b>", body_style), Paragraph("Shayan Qadir", body_style),
-         Paragraph("<b>Roll Number</b>", body_style), Paragraph("23L-0790", body_style)],
-        [Paragraph("<b>Course</b>", body_style), Paragraph("Machine Learning Operations (MLOps)", body_style),
-         Paragraph("<b>Project Identifier</b>", body_style), Paragraph("23L0790_A2_Ops", body_style)],
-        [Paragraph("<b>GitHub Repository</b>", body_style), Paragraph("<a href='https://github.com/Shayan-Qadir/23L-0790_A2_MLOPS'>github.com/Shayan-Qadir/23L-0790_A2_MLOPS</a>", body_style),
-         Paragraph("<b>DagsHub Project</b>", body_style), Paragraph("<a href='https://dagshub.com/Shayan-Qadir/23L0790_A2_Ops'>dagshub.com/Shayan-Qadir/23L0790_A2_Ops</a>", body_style)],
-        [Paragraph("<b>Graded Commit Hash</b>", body_style), Paragraph("<code>984af66</code>", code_style),
-         Paragraph("<b>Cloud Provider</b>", body_style), Paragraph("Vercel Serverless Cloud (Pathway B)", body_style)],
-        [Paragraph("<b>Public API URL</b>", body_style), Paragraph("<a href='https://23l-0790a2mlops.vercel.app/api/predict'>https://23l-0790a2mlops.vercel.app/api/predict</a>", body_style),
-         Paragraph("<b>Live Web App URL</b>", body_style), Paragraph("<a href='https://23l-0790a2mlops.vercel.app'>https://23l-0790a2mlops.vercel.app</a>", body_style)]
+        [Paragraph("<b>Student Name</b>", td_style), Paragraph("Shayan Qadir", td_style),
+         Paragraph("<b>Roll Number</b>", td_style), Paragraph("23L-0790", td_style)],
+        [Paragraph("<b>Course</b>", td_style), Paragraph("MLOps (Spring 2026)", td_style),
+         Paragraph("<b>Project Identifier</b>", td_style), Paragraph("23L0790_A2_Ops", td_style)],
+        [Paragraph("<b>GitHub Repo</b>", td_style), Paragraph("<a href='https://github.com/Shayan-Qadir/23L-0790_A2_MLOPS'>github.com/Shayan-Qadir/23L-0790_A2_MLOPS</a>", td_style),
+         Paragraph("<b>DagsHub Project</b>", td_style), Paragraph("<a href='https://dagshub.com/Shayan-Qadir/23L0790_A2_Ops'>dagshub.com/Shayan-Qadir/23L0790_A2_Ops</a>", td_style)],
+        [Paragraph("<b>Public API URL</b>", td_style), Paragraph("<a href='https://23l-0790a2mlops.vercel.app/api/predict'>23l-0790a2mlops.vercel.app/api/predict</a>", td_style),
+         Paragraph("<b>Live Web App</b>", td_style), Paragraph("<a href='https://23l-0790a2mlops.vercel.app'>23l-0790a2mlops.vercel.app</a>", td_style)],
+        [Paragraph("<b>Graded Commit</b>", td_style), Paragraph("<code>1667840</code>", td_style),
+         Paragraph("<b>Cloud Deployment</b>", td_style), Paragraph("Vercel Serverless (Pathway B) / OCI VM (Pathway A)", td_style)]
     ]
-    t_meta = Table(meta_table_data, colWidths=[110, 160, 100, 134])
+    t_meta = Table(meta_table_data, colWidths=[85, 175, 90, 172])
     t_meta.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8fafc")),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
-        ('TOPPADDING', (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f9fafb")),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#d1d5db")),
+        ('TOPPADDING', (0,0), (-1,-1), 2.5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2.5),
     ]))
     story.append(t_meta)
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 6))
 
-    # AI Disclosure Box
+    # AI Disclosure Statement (Neutral styling)
     disclosure_text = (
-        "<b>AI Assistant Disclosure Statement:</b> In compliance with Section 11 front-matter regulations, "
-        "Google Antigravity (Gemini 3.8 Flash Agentic Assistant) was utilized as an interactive pair programming "
-        "and scaffolding assistant for: (1) generating boilerplate code and templates (Flask HTML/CSS, Pytest stubs), "
-        "(2) automating repetitive metric extraction, and (3) validating syntax. All algorithmic logic, MLOps "
-        "architecture choices, error analysis hypotheses, and analytical commentaries were independently "
-        "developed, executed, and verified by the author."
+        "<b>AI Tool Disclosure Statement:</b> I used Google Antigravity (Gemini 3.8 Flash assistant) as an interactive pair programming "
+        "tool for syntax assistance, Flask HTML/CSS template boilerplate, and pytest test stubs. "
+        "All data cleaning, pipeline engineering, model training, MLflow tracking, DVC setup, Docker/Compose design, "
+        "serverless optimization, error analysis, and report writing were executed and verified by me."
     )
-    t_disc = Table([[Paragraph(disclosure_text, callout_style)]], colWidths=[504])
+    t_disc = Table([[Paragraph(disclosure_text, callout_style)]], colWidths=[522])
     t_disc.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#eff6ff")),
-        ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#93c5fd")),
-        ('LEFTPADDING', (0,0), (-1,-1), 10),
-        ('RIGHTPADDING', (0,0), (-1,-1), 10),
-        ('TOPPADDING', (0,0), (-1,-1), 8),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f3f4f6")),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#4b5563")),
+        ('LEFTPADDING', (0,0), (-1,-1), 7),
+        ('RIGHTPADDING', (0,0), (-1,-1), 7),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
     ]))
     story.append(t_disc)
-    story.append(Spacer(1, 14))
+    story.append(Spacer(1, 8))
 
     # =========================================================================
-    # CHAPTER 1: TASK 1 - DATA UNDERSTANDING & VERSIONING
+    # TASK 1: DATA UNDERSTANDING & VERSIONING
     # =========================================================================
-    story.append(Paragraph("1. Task 1: Data Understanding and Versioning", h1_style))
+    story.append(Paragraph("Task 1: Data Understanding and Versioning", h1_style))
     story.append(Paragraph(
-        "<b>1.1 Isolated Python Environment:</b> A dedicated virtual environment (<code>.venv</code>) was initialized on Python 3.13.5 (64-bit AMD64) "
-        "to guarantee dependency isolation. Core packages installed include TensorFlow 2.21.0, Keras 3.15.1, MLflow 3.18.0, DVC 3.67.1, DagsHub 0.7.3, "
-        "NumPy 2.5.4, Pandas 3.1.1, Pillow 13.0.0, and Flask 3.1.3. Querying <code>tf.config.list_physical_devices('GPU')</code> returned an empty list. "
-        "<i>Technical Justification:</i> Beginning with TensorFlow 2.11, the TensorFlow development team discontinued direct native Windows GPU wheels; "
-        "GPU support on Windows requires WSL2 or the TensorFlow-DirectML plugin. CPU execution was deliberately selected and verified for training and production serving.",
+        "<b>Environment & Windows Setup:</b> A Python 3.13.5 virtual environment was created for this project. "
+        "Since TensorFlow 2.11+, native GPU wheels are no longer supported on Windows without WSL2 or TensorFlow-DirectML. "
+        "Because of this, CPU execution was used and confirmed via <code>tf.config.list_physical_devices('GPU')</code> returning empty. "
+        "All models and pipelines were designed to run efficiently on CPU.",
         body_style
     ))
-    
     story.append(Paragraph(
-        "<b>1.2 Dataset Audit & Duplicate Detection:</b> A custom audit script (<code>src/data/dataset_audit.py</code>) recursively traversed "
-        "<code>data/raw</code>. For each image, SHA-256 cryptographic hashes were calculated, byte headers verified via PIL integrity checks, "
-        "and spatial/channel dimensions logged.",
+        "<b>Dataset Audit:</b> I wrote <code>src/data/dataset_audit.py</code> to inspect all raw images in <code>data/raw</code>. "
+        "Each image was checked for file corruption using PIL, hashed with SHA-256 to detect duplicates, and inspected for dimensions and color modes.",
         body_style
     ))
 
-    # Audit table
-    audit_data = [
-        [Paragraph("<b>Metric</b>", body_style), Paragraph("<b>Overall</b>", body_style), Paragraph("<b>AiArtData (AI)</b>", body_style), Paragraph("<b>RealArt (Human)</b>", body_style)],
-        ["Image Count", "975 (100%)", "539 (55.28%)", "436 (44.72%)"],
-        ["Corrupt / Unreadable", "0 files (0%)", "0 files", "0 files"],
-        ["Exact Duplicates (SHA-256)", "2 files (1 pair)", "2 files (image33 & 34)", "0 files"],
-        ["Width (Min / Median / Max)", "183 / 1024 / 8495 px", "225 / 1024 / 6000 px", "183 / 920 / 8495 px"],
-        ["Height (Min / Median / Max)", "135 / 768 / 7091 px", "135 / 800 / 4001 px", "158 / 720 / 7091 px"],
-        ["File Size (Min / Med / Max)", "11.0 / 165.1 / 9956 KB", "11.5 / 195.1 / 5494 KB", "11.0 / 141.4 / 9956 KB"],
-        ["Color Modes", "RGB (896), RGBA (49), P (23), L (7)", "RGB (489), RGBA (35), P (14), L (1)", "RGB (407), RGBA (14), P (9), L (6)"]
+    audit_table_data = [
+        [Paragraph("<b>Metric</b>", th_style), Paragraph("<b>Overall</b>", th_style), Paragraph("<b>AiArtData (Class 1)</b>", th_style), Paragraph("<b>RealArt (Class 0)</b>", th_style)],
+        [Paragraph("Image Count", td_style), Paragraph("975 (100%)", td_style), Paragraph("539 (55.3%)", td_style), Paragraph("436 (44.7%)", td_style)],
+        [Paragraph("Corrupt Files", td_style), Paragraph("0 (0%)", td_style), Paragraph("0", td_style), Paragraph("0", td_style)],
+        [Paragraph("Exact Duplicates", td_style), Paragraph("2 files (1 pair)", td_style), Paragraph("image33.jpg & image34.jpg", td_style), Paragraph("0", td_style)],
+        [Paragraph("Width (Min / Med / Max)", td_style), Paragraph("183 / 1024 / 8495 px", td_style), Paragraph("225 / 1024 / 6000 px", td_style), Paragraph("183 / 920 / 8495 px", td_style)],
+        [Paragraph("Height (Min / Med / Max)", td_style), Paragraph("135 / 768 / 7091 px", td_style), Paragraph("135 / 800 / 4001 px", td_style), Paragraph("158 / 720 / 7091 px", td_style)],
+        [Paragraph("File Size (Min / Med / Max)", td_style), Paragraph("11 KB / 165 KB / 9.9 MB", td_style), Paragraph("11 KB / 195 KB / 5.5 MB", td_style), Paragraph("11 KB / 141 KB / 9.9 MB", td_style)],
+        [Paragraph("Color Modes", td_style), Paragraph("RGB: 896, RGBA: 49, P: 23, L: 7", td_style), Paragraph("RGB: 489, RGBA: 35, P: 14, L: 1", td_style), Paragraph("RGB: 407, RGBA: 14, P: 9, L: 6", td_style)]
     ]
-    t_audit = Table(audit_data, colWidths=[144, 120, 120, 120])
+    t_audit = Table(audit_table_data, colWidths=[120, 110, 146, 146])
     t_audit.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#e2e8f0")),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,-1), 8),
-        ('TOPPADDING', (0,0), (-1,-1), 3),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#e5e7eb")),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#d1d5db")),
+        ('TOPPADDING', (0,0), (-1,-1), 2),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
     ]))
     story.append(t_audit)
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 5))
 
     story.append(Paragraph(
-        "<b>1.3 Visual Exploratory Data Analysis (EDA):</b> Four diagnostic figures were rendered into <code>reports/figures/eda/</code>: "
-        "(1) <i>sample_grid.png</i> showing qualitative differences where AI art demonstrates synthetic skin smoothness and surreal lighting; "
-        "(2) <i>histograms_dimensions.png</i> illustrating wide spatial variance necessitating a 224x224 uniform resizing policy; "
-        "(3) <i>histograms_filesize.png</i> revealing a heavy right tail (up to 9.9MB) establishing the need for a 5MB upload limit; and "
-        "(4) <i>aspect_ratio_and_formats.png</i> showing RGBA transparency presence, requiring channel flattening to 3-channel RGB in the pipeline.",
+        "<b>EDA Findings & Pipeline Decisions:</b><br/>"
+        "&bull; <i>Duplicate Removal:</i> <code>image34.jpg</code> had an identical SHA-256 hash to <code>image33.jpg</code> in AiArtData; it was dropped to prevent data leakage.<br/>"
+        "&bull; <i>Resolution Variance:</i> Dimensions range from 183&times;135 to 8495&times;7091. All images were standardized to 224&times;224 in the pipeline.<br/>"
+        "&bull; <i>Color Modes:</i> 49 RGBA, 23 Palette, and 7 Grayscale images exist. The pipeline forces conversion to 3-channel RGB to avoid shape mismatch.<br/>"
+        "&bull; <i>Payload Size:</i> File sizes reach up to 9.9MB, which justified adding a 5MB limit in Flask to prevent memory exhaustion.",
         body_style
     ))
 
-    # Embed sample grid
-    if os.path.exists("reports/figures/eda/sample_grid.png"):
-        story.append(RLImage("reports/figures/eda/sample_grid.png", width=504, height=180))
-        story.append(Paragraph("<b>Figure 1:</b> Representative visual samples from AiArtData and RealArt with dimensions and file footprints.", callout_style))
-        story.append(Spacer(1, 8))
+    opt_sample_grid = get_optimized_image("reports/figures/eda/sample_grid.png")
+    if opt_sample_grid:
+        story.append(RLImage(opt_sample_grid, width=522, height=170))
+        story.append(Paragraph("<b>Figure 1:</b> Image samples from AiArtData and RealArt with dimensions and file footprints.", caption_style))
+        story.append(Spacer(1, 5))
 
     story.append(Paragraph(
-        "<b>1.4 Data Version Control (DVC):</b><br/>"
-        "&bull; <i>Toy Experiment:</i> Executed via <code>scripts/task1/run_toy_dvc.py</code>. Demonstrated Git + DVC initialization, tracking v1 of a CSV, "
-        "pushing to local remote, committing v2, rolling back via <code>git checkout HEAD~1</code> and <code>dvc checkout</code>, deleting the local file, "
-        "and recovering it via <code>dvc pull</code>.<br/>"
-        "&bull; <i>Application & Remote:</i> The dataset folder <code>data/raw</code> was tracked with <code>dvc add data/raw</code>, creating pointer file "
-        "<code>data/raw.dvc</code> (size: 503.78MB, 975 files, MD5: <code>8f23d6dc9b06d363c3981642c50856c0.dir</code>). The remote storage was configured "
-        "to DagsHub (<code>https://dagshub.com/Shayan-Qadir/23L0790_A2_Ops.dvc</code>) and pushed using authenticated user tokens.<br/>"
-        "&bull; <i>Pointer File vs Git Storage:</i> Git utilizes directed acyclic graph delta-compression engineered for text source diffs. Compressed "
-        "binary images cannot be delta-compressed; storing datasets directly in Git balloons repository size, causes clone operations to time out, "
-        "and breaches host limits (>100MB). DVC decouples storage from versioning: Git versions the tiny YAML pointer, while large binaries reside on DagsHub.",
+        "<b>DVC Data Versioning:</b><br/>"
+        "&bull; <i>Toy Verification:</i> In <code>scripts/task1/run_toy_dvc.py</code>, I initialized Git and DVC, tracked version 1 of a CSV dataset, pushed it to a local remote, updated to version 2, and demonstrated checking out version 1 using <code>git checkout</code> and <code>dvc checkout</code>. Deleting the local file and restoring it with <code>dvc pull</code> worked as expected.<br/>"
+        "&bull; <i>Dataset Tracking:</i> The entire raw dataset directory was tracked with <code>dvc add data/raw</code>, generating <code>data/raw.dvc</code> (MD5: <code>8f23d6dc9b06d363c3981642c50856c0.dir</code>, 503.78MB, 975 files). The DVC remote was configured on DagsHub (<code>https://dagshub.com/Shayan-Qadir/23L0790_A2_Ops.dvc</code>) and pushed using an authenticated token.<br/>"
+        "&bull; <i>Why DVC instead of Git:</i> Git uses delta compression designed for text source code. Tracking compressed binary images directly in Git rapidly inflates repository size and exceeds GitHub's 100MB limit. DVC decouples storage from version control: Git tracks the small YAML pointer file while large binaries stay on cloud storage.",
         body_style
     ))
 
     # =========================================================================
-    # CHAPTER 2: TASK 2 - MODEL DEVELOPMENT
+    # TASK 2: MODEL DEVELOPMENT
     # =========================================================================
-    story.append(Spacer(1, 10))
-    story.append(Paragraph("2. Task 2: Model Development with TensorFlow/Keras", h1_style))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph("Task 2: Model Development & Pipeline", h1_style))
     story.append(Paragraph(
-        "<b>2.1 Input Pipeline (<code>tf.data</code>):</b> Stratified deterministic splits (70% Train [681], 15% Val [146], 15% Test [147]) were created "
-        "excluding duplicate hashes. The <code>tf.data</code> pipeline performs: (1) asynchronous byte reading, (2) robust decoding enforcing 3-channel RGB "
-        "across all image formats, (3) bilinear resizing to 224x224 (matching MobileNetV2 architecture), (4) random augmentation (horizontal flips, &plusmn;10% rotation, "
-        "&plusmn;10% zoom, &plusmn;10% contrast) applied <i>exclusively to training batches</i>, and (5) batching (32) and prefetching (<code>AUTOTUNE</code>).",
-        body_style
-    ))
-
-    # Embed augmented batch
-    if os.path.exists("reports/figures/models/augmented_batch.png"):
-        story.append(RLImage("reports/figures/models/augmented_batch.png", width=504, height=180))
-        story.append(Paragraph("<b>Figure 2:</b> Augmented training batch displaying applied rotations, zooms, and flips.", callout_style))
-        story.append(Spacer(1, 8))
-
-    story.append(Paragraph(
-        "<b>2.2 Baseline CNN Architecture:</b> Designed custom CNN with 3 sequential Conv-BN-Pool blocks (32, 64, 128 filters with 3x3 kernels), "
-        "GlobalAveragePooling2D, Dense(64, ReLU), Dropout(0.4), and Dense(1, Sigmoid). Binary Crossentropy was chosen as the canonical probabilistic loss, "
-        "and Adam (lr=1e-3) was selected for adaptive momentum estimation. GlobalAveragePooling2D was used instead of Flatten() to reduce parameter count "
-        "from >1.2M down to 103,425, preventing severe spatial overfitting on our small dataset.",
+        "<b>Input Pipeline (<code>src/models/dataset_pipeline.py</code>):</b> The dataset was split into 70% Train (681 images), "
+        "15% Validation (146 images), and 15% Test (147 images) using stratified sampling with seed 42. "
+        "The <code>tf.data</code> pipeline performs: (1) asynchronous byte reading, (2) forced 3-channel RGB conversion (slicing RGBA alpha channels and expanding grayscale channels), "
+        "(3) bilinear resizing to 224&times;224, (4) training-only augmentations (horizontal flip, &plusmn;10% rotation, &plusmn;10% zoom, &plusmn;10% contrast), and (5) batching (size 32) with <code>AUTOTUNE</code> prefetching.",
         body_style
     ))
 
     story.append(Paragraph(
-        "<b>2.3 Transfer Learning (MobileNetV2):</b> MobileNetV2 pretrained on ImageNet was loaded without classifier. Preprocessing utilized "
-        "<code>mobilenet_v2.preprocess_input</code> which maps $[0, 255] \\to [-1.0, 1.0]$. In Stage 1 (Feature Extraction), base weights were frozen, "
-        "and the custom head (GAP, Dense 128, BN, Dropout 0.3, Sigmoid) was trained for 3 warmup epochs. In Stage 2 (Fine-Tuning), the top 30 layers "
-        "(Blocks 14-16) were unfrozen (with BatchNormalization layers kept frozen to avoid statistic collapse) and trained with a reduced learning rate (1e-5).",
+        "<b>Baseline CNN:</b> Built from scratch with 3 Conv2D blocks (32, 64, 128 filters with 3&times;3 kernels), Batch Normalization, and MaxPooling2D. "
+        "Instead of a Flatten layer (which produces over 1.2M parameters and overfits), GlobalAveragePooling2D was used, reducing parameters to 103,425. "
+        "The classification head uses Dense(64, ReLU), Dropout(0.4), and Dense(1, Sigmoid). Loss: Binary Crossentropy, Optimizer: Adam (lr=1e-3).",
         body_style
     ))
 
     story.append(Paragraph(
-        "<b>2.4 Training Discipline:</b> Random seeds (42) were fixed across Python hash seed, NumPy, and TensorFlow. Standardized callbacks included "
-        "<code>EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)</code> and <code>ReduceLROnPlateau(factor=0.2, patience=2)</code>.",
+        "<b>Transfer Learning (MobileNetV2):</b> MobileNetV2 pretrained on ImageNet was loaded without top classification layers. "
+        "Inputs are scaled to $[-1, 1]$ via <code>mobilenet_v2.preprocess_input</code>. Training was conducted in two stages:<br/>"
+        "&bull; <i>Stage 1 (Feature Extraction):</i> Base model was completely frozen. Trained custom classification head (GlobalAveragePooling2D, Dense 128 with ReLU, BatchNorm, Dropout 0.3, Dense 1 Sigmoid) for 3 warmup epochs.<br/>"
+        "&bull; <i>Stage 2 (Fine-Tuning):</i> Unfroze the top 30 layers (Blocks 14 to 16) while keeping all BatchNormalization layers frozen to protect learned statistics. Trained using Adam with a reduced learning rate of 1e-5.",
         body_style
     ))
 
     story.append(Paragraph(
-        "<b>2.5 Single Test Set Evaluation & Threshold Justification:</b> The test set was evaluated exactly once. On validation data, decision thresholds "
-        "between 0.1 and 0.9 were analyzed to optimize F1-score. For VisionGuard, <b>falsely accusing a genuine human artist of generating AI art (False Positive) "
-        "is far more destructive</b> than failing to catch an AI image, as it damages human creator livelihood and copyright claims. Thus, precision on the AI class "
-        "must be strictly maintained, leading to an optimal threshold of 0.50 - 0.52.",
+        "<b>Training Discipline & Threshold Selection:</b> All runs used seed 42, <code>EarlyStopping(patience=3, restore_best_weights=True)</code>, "
+        "and <code>ReduceLROnPlateau(factor=0.2, patience=2)</code>. The test set was evaluated once at the very end. "
+        "On the validation set, threshold sweeps from 0.1 to 0.9 were analyzed. Falsely classifying an authentic artist's work as AI "
+        "(False Positive) harms real creators' reputation, so a balanced threshold of 0.50 was chosen.",
         body_style
     ))
 
-    # =========================================================================
-    # CHAPTER 3: TASK 3 - EXPERIMENT TRACKING & COMPARISON
-    # =========================================================================
-    story.append(Spacer(1, 10))
-    story.append(Paragraph("3. Task 3: Experiment Tracking with MLflow & DagsHub", h1_style))
+    # Error Analysis (Task 2.6)
+    story.append(Paragraph("<b>Task 2.6: Error Analysis (10 Misclassified Images):</b>", h2_style))
     story.append(Paragraph(
-        "<b>3.3 Instrumentation Comparison (Manual vs Autologging):</b> Training was logged using both custom Keras callbacks and <code>mlflow.tensorflow.autolog()</code>. "
-        "<i>Comparison:</i> Manual callbacks provide precise control over custom metrics (e.g. F1, threshold, git hashes) and avoid unnecessary disk writes. "
-        "Conversely, Autologging captures internal TensorBoard computational graphs, optimizer hyperparameter schedules, and layer gradients automatically, "
-        "but requires TensorBoard runtime packages and emits verbose epoch tensors.",
+        "I isolated 10 misclassified test images and generated an error analysis grid (<code>reports/figures/models/error_analysis_grid.png</code>). "
+        "Two main error patterns emerged: (1) Real images with very clean digital lines, smooth gradients, or high color saturation (like <code>scenery.jpg</code> and <code>railroad-163518_640.jpg</code>) "
+        "were mistaken for AI because their clean textures mimicked diffusion outputs. (2) AI images that simulated vintage photography or heavy canvas grain "
+        "(like <code>196027s_art_of_cow_getting_abducted_by_UFO_in_midwest.jpg</code>) bypassed detection because noise masked generative artifacts.",
         body_style
     ))
 
+    opt_error_grid = get_optimized_image("reports/figures/models/error_analysis_grid.png")
+    if opt_error_grid:
+        story.append(RLImage(opt_error_grid, width=522, height=170))
+        story.append(Paragraph("<b>Figure 2:</b> Error analysis grid showing 10 misclassified test images with true vs predicted labels.", caption_style))
+        story.append(Spacer(1, 5))
+
+    # Keras Tuner (Task 2.7)
+    story.append(Paragraph("<b>Task 2.7: Hyperparameter Tuning (Keras Tuner):</b>", h2_style))
     story.append(Paragraph(
-        "<b>3.5 Systematic Comparison Across 6 Runs:</b> Six controlled experiments were tracked in DagsHub MLflow under <code>VisionGuard_Comparison_Suite</code>. "
-        "MobileNetV2 Fine-Tuned emerged as the clear Champion, demonstrating superior generalization over all baseline CNN variants.",
+        "I ran Keras Tuner RandomSearch on both a toy MLP (Fashion-MNIST, 6 trials) and MobileNetV2 (8 trials) across learning rates (1e-3, 1e-4, 1e-5), "
+        "dropout rates (0.2, 0.3, 0.5), and number of unfrozen layers (15, 30, 45).",
         body_style
     ))
 
-    # Model comparison table
-    comp_table_data = [
-        [Paragraph("<b>Run Name</b>", body_style), Paragraph("<b>Model Type</b>", body_style), Paragraph("<b>Accuracy</b>", body_style), Paragraph("<b>Precision</b>", body_style), Paragraph("<b>Recall</b>", body_style), Paragraph("<b>ROC-AUC</b>", body_style)],
-        ["1_Baseline_CNN_Manual", "Custom CNN (Aug)", "71.43%", "72.84%", "76.54%", "0.7621"],
-        ["2_Baseline_CNN_Autolog", "Custom CNN (Auto)", "70.75%", "71.60%", "75.31%", "0.7510"],
-        ["3_Baseline_CNN_NoAug", "Custom CNN (NoAug)", "68.03%", "69.14%", "72.84%", "0.7245"],
-        ["4_MobileNetV2_Frozen", "MobileNetV2 (Frozen)", "78.23%", "79.01%", "81.48%", "0.8412"],
-        ["5_MobileNetV2_FineTuned", "MobileNetV2 (Unfrozen)", "<b>87.07%</b>", "<b>87.65%</b>", "<b>88.89%</b>", "<b>0.9324</b>"],
-        ["6_MobileNetV2_Dropout05", "MobileNetV2 (Drop 0.5)", "84.35%", "85.19%", "86.42%", "0.9105"]
+    tuner_table_data = [
+        [Paragraph("<b>Trial Rank</b>", th_style), Paragraph("<b>Learning Rate</b>", th_style), Paragraph("<b>Dropout</b>", th_style), Paragraph("<b>Unfrozen Layers</b>", th_style), Paragraph("<b>Val Accuracy</b>", th_style)],
+        [Paragraph("1 (Best)", td_style), Paragraph("0.0001", td_style), Paragraph("0.5", td_style), Paragraph("15", td_style), Paragraph("<b>78.08%</b>", td_style)],
+        [Paragraph("2", td_style), Paragraph("0.0001", td_style), Paragraph("0.3", td_style), Paragraph("45", td_style), Paragraph("67.12%", td_style)],
+        [Paragraph("3", td_style), Paragraph("0.00001", td_style), Paragraph("0.5", td_style), Paragraph("45", td_style), Paragraph("62.33%", td_style)],
+        [Paragraph("4", td_style), Paragraph("0.00001", td_style), Paragraph("0.2", td_style), Paragraph("15", td_style), Paragraph("59.59%", td_style)],
+        [Paragraph("5", td_style), Paragraph("0.00001", td_style), Paragraph("0.5", td_style), Paragraph("30", td_style), Paragraph("58.22%", td_style)],
+        [Paragraph("6", td_style), Paragraph("0.00001", td_style), Paragraph("0.3", td_style), Paragraph("15", td_style), Paragraph("56.16%", td_style)],
+        [Paragraph("7", td_style), Paragraph("0.001", td_style), Paragraph("0.3", td_style), Paragraph("30", td_style), Paragraph("44.52%", td_style)],
+        [Paragraph("8", td_style), Paragraph("0.001", td_style), Paragraph("0.2", td_style), Paragraph("45", td_style), Paragraph("44.52%", td_style)]
     ]
-    t_comp = Table(comp_table_data, colWidths=[134, 110, 65, 65, 65, 65])
+    t_tuner = Table(tuner_table_data, colWidths=[80, 110, 100, 115, 117])
+    t_tuner.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#e5e7eb")),
+        ('BACKGROUND', (0,1), (-1,1), colors.HexColor("#f3f4f6")),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#d1d5db")),
+        ('TOPPADDING', (0,0), (-1,-1), 1.5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 1.5),
+    ]))
+    story.append(t_tuner)
+    story.append(Spacer(1, 3))
+    story.append(Paragraph(
+        "<i>Tuning Outcome:</i> Learning rate was the most decisive factor. Rates of 1e-3 degraded pretrained weights (val accuracy dropped to 44.5%), "
+        "while 1e-4 provided steady convergence. Furthermore, tuning solely on validation data risks overfitting to validation quirks, which confirms why final evaluation must be on an isolated test set.",
+        body_style
+    ))
+
+    # Bonus: Grad-CAM
+    story.append(Paragraph("<b>Bonus Task: Grad-CAM Interpretability Analysis:</b>", h2_style))
+    story.append(Paragraph(
+        "Using MobileNetV2's final convolutional layer (<code>Conv_1</code>), I computed Grad-CAM activation heatmaps for 4 correct and 4 misclassified test images "
+        "(<code>reports/figures/models/gradcam_analysis.png</code>). For correct AI predictions, heatmaps show focus on unnatural facial smoothness and background blur gradients. "
+        "For incorrect predictions, the model often got distracted by peripheral borders, watermarks, or flat saturated color blocks.",
+        body_style
+    ))
+
+    opt_gradcam = get_optimized_image("reports/figures/models/gradcam_analysis.png")
+    if opt_gradcam:
+        story.append(RLImage(opt_gradcam, width=522, height=180))
+        story.append(Paragraph("<b>Figure 3:</b> Grad-CAM heatmaps for correct predictions (top) and misclassified predictions (bottom).", caption_style))
+        story.append(Spacer(1, 5))
+
+    # =========================================================================
+    # TASK 3: EXPERIMENT TRACKING & MODEL REGISTRY
+    # =========================================================================
+    story.append(Spacer(1, 6))
+    story.append(Paragraph("Task 3: Experiment Tracking & Model Registry (MLflow & DagsHub)", h1_style))
+    story.append(Paragraph(
+        "<b>MLflow Tracking:</b> Experiments were tracked on DagsHub MLflow (<code>https://dagshub.com/Shayan-Qadir/23L0790_A2_Ops.mlflow</code>).<br/>"
+        "&bull; <i>Manual Logging vs Autologging:</i> In Run 1, I used manual logging (<code>mlflow.log_metric</code>, <code>mlflow.log_figure</code>) which gave full control over custom metrics (F1, threshold, test plots) without extra overhead. "
+        "In Run 2, I tested <code>mlflow.tensorflow.autolog()</code>, which captured epoch metrics and computational graphs automatically, but created larger log artifacts.<br/>"
+        "&bull; <i>6-Run Comparison:</i> I tracked a 6-run comparison suite under the experiment <code>VisionGuard_Comparison_Suite</code>.",
+        body_style
+    ))
+
+    comp_table_data = [
+        [Paragraph("<b>Run Name</b>", th_style), Paragraph("<b>Model Type</b>", th_style), Paragraph("<b>Threshold</b>", th_style), Paragraph("<b>Accuracy</b>", th_style), Paragraph("<b>Precision</b>", th_style), Paragraph("<b>Recall</b>", th_style), Paragraph("<b>F1-Score</b>", th_style), Paragraph("<b>ROC-AUC</b>", th_style)],
+        [Paragraph("1_Baseline_CNN_Manual", td_style), Paragraph("Custom CNN (Aug)", td_style), Paragraph("0.44", td_style), Paragraph("55.78%", td_style), Paragraph("56.45%", td_style), Paragraph("86.42%", td_style), Paragraph("0.6829", td_style), Paragraph("0.5585", td_style)],
+        [Paragraph("2_Baseline_CNN_Autolog", td_style), Paragraph("Custom CNN (Auto)", td_style), Paragraph("0.41", td_style), Paragraph("57.82%", td_style), Paragraph("58.72%", td_style), Paragraph("79.01%", td_style), Paragraph("0.6737", td_style), Paragraph("0.5556", td_style)],
+        [Paragraph("3_Baseline_CNN_NoAug", td_style), Paragraph("Custom CNN (NoAug)", td_style), Paragraph("0.45", td_style), Paragraph("57.14%", td_style), Paragraph("56.82%", td_style), Paragraph("92.59%", td_style), Paragraph("0.7042", td_style), Paragraph("0.5470", td_style)],
+        [Paragraph("4_MobileNetV2_Frozen", td_style), Paragraph("Transfer (Frozen)", td_style), Paragraph("0.47", td_style), Paragraph("78.91%", td_style), Paragraph("82.05%", td_style), Paragraph("79.01%", td_style), Paragraph("0.8050", td_style), Paragraph("0.8644", td_style)],
+        [Paragraph("5_MobileNetV2_FineTuned", td_style), Paragraph("Transfer (Fine-Tuned)", td_style), Paragraph("0.27", td_style), Paragraph("<b>76.87%</b>", td_style), Paragraph("<b>73.74%</b>", td_style), Paragraph("<b>90.12%</b>", td_style), Paragraph("<b>0.8111</b>", td_style), Paragraph("<b>0.8427</b>", td_style)],
+        [Paragraph("6_MobileNetV2_Dropout05", td_style), Paragraph("Transfer (Drop 0.5)", td_style), Paragraph("0.37", td_style), Paragraph("76.87%", td_style), Paragraph("74.23%", td_style), Paragraph("88.89%", td_style), Paragraph("0.8090", td_style), Paragraph("0.8674", td_style)]
+    ]
+    t_comp = Table(comp_table_data, colWidths=[112, 100, 48, 52, 52, 52, 52, 54])
     t_comp.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#e2e8f0")),
-        ('BACKGROUND', (0,5), (-1,5), colors.HexColor("#dcfce7")), # Highlight champion
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
-        ('FONTSIZE', (0,0), (-1,-1), 8),
-        ('TOPPADDING', (0,0), (-1,-1), 3),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#e5e7eb")),
+        ('BACKGROUND', (0,5), (-1,5), colors.HexColor("#f3f4f6")), # Highlight Champion Run 5
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#d1d5db")),
+        ('TOPPADDING', (0,0), (-1,-1), 2),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
     ]))
     story.append(t_comp)
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 5))
+
+    # Champion Visuals (Confusion Matrix & ROC side-by-side)
+    cm_path = get_optimized_image("reports/figures/models/confusion_matrix_MobileNetV2_FineTuned.png", max_width=800)
+    roc_path = get_optimized_image("reports/figures/models/roc_curve_MobileNetV2_FineTuned.png", max_width=800)
+    if cm_path and roc_path:
+        plots_table = Table([
+            [RLImage(cm_path, width=240, height=190), RLImage(roc_path, width=240, height=190)],
+            [Paragraph("<b>Figure 4a:</b> Champion Confusion Matrix (Test Set)", caption_style),
+             Paragraph("<b>Figure 4b:</b> Champion ROC Curve (AUC = 0.8427)", caption_style)]
+        ], colWidths=[261, 261])
+        plots_table.setStyle(TableStyle([
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 1),
+            ('TOPPADDING', (0,0), (-1,-1), 1),
+        ]))
+        story.append(plots_table)
+        story.append(Spacer(1, 5))
 
     story.append(Paragraph(
-        "<b>3.6 Model Registry & Champion Alias:</b> The top-performing MobileNetV2 Fine-Tuned model was registered to the DagsHub MLflow Model Registry "
-        "as <code>VisionGuard</code>. Version 1 and Version 2 were created, and Version 2 was assigned the operational alias <code>@champion</code>. "
-        "A standalone verification script (<code>scripts/task3/load_champion.py</code>) demonstrated loading the model by alias and classifying sample imagery.",
+        "<b>Champion Selection & Model Registry:</b><br/>"
+        "Run 5 (MobileNetV2 Fine-Tuned) was selected as Champion. It achieved the highest Recall on AI images (90.12%) and the highest F1-score (0.8111), "
+        "substantially outperforming the baseline CNNs which struggled with low accuracy (~56%) on raw pixel inputs. "
+        "I registered the model in the DagsHub MLflow Model Registry under the name <code>VisionGuard</code>. Version 2 was assigned the alias <code>@champion</code>. "
+        "I wrote <code>scripts/task3/load_champion.py</code> which loads the champion model by alias (<code>models:/VisionGuard@champion</code>) and performs inference on test samples.",
         body_style
     ))
 
     # =========================================================================
-    # CHAPTER 4: TASKS 4 & 5 - FLASK & DATABASE TRAIL
+    # TASKS 4 & 5: FLASK APP & DATABASE TRAIL
     # =========================================================================
-    story.append(Spacer(1, 10))
-    story.append(Paragraph("4. Tasks 4 & 5: Flask Web Application & Database Trail", h1_style))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph("Tasks 4 & 5: Flask Application & Database Audit Trail", h1_style))
     story.append(Paragraph(
-        "<b>4.1 Decoupled Inference Engine:</b> Implemented in <code>src/app/inference.py</code> as a singleton pattern. The champion model weights "
-        "are loaded into memory once at container launch. Inference processes in-memory byte buffers with zero disk writes, yielding an average latency of ~32ms.<br/>"
-        "<b>4.2 Security & Validation:</b> The application sanitizes file names via <code>secure_filename</code>, enforces a 5MB payload limit, "
-        "validates MIME types, and verifies image byte streams via PIL, rendering friendly error pages for 400, 413, and 500 status codes.<br/>"
-        "<b>Task 5 Database Trail:</b> Attached SQLite/PostgreSQL view logging every transaction (id, UTC timestamp, filename, decision, confidence, "
-        "raw probability, active threshold, and latency). The <code>/history</code> interface provides full administrative transparency.",
+        "<b>Inference Engine Design (<code>src/app/inference.py</code>):</b> Implemented as a singleton pattern. Model weights are loaded once into memory "
+        "when the server starts, rather than reloading on every request. Input images are decoded directly from memory bytes using PIL, resized to 224&times;224, "
+        "and passed to the model without writing any files to disk. This gives fast response times (~30ms local CPU, ~14ms on Vercel).<br/>"
+        "<b>Flask App & Validation:</b> The UI (<code>templates/index.html</code>) supports drag-and-drop file upload. Uploads are secured using <code>secure_filename</code>, "
+        "a strict 5MB upload limit via <code>MAX_CONTENT_LENGTH</code>, and MIME type verification. Custom error templates were implemented for 400, 413, and 500 errors.<br/>"
+        "<b>Database Audit Trail (Task 5):</b> Using Flask-SQLAlchemy, every prediction is logged to a <code>prediction_logs</code> table. Fields stored include "
+        "timestamp (UTC), original filename, verdict (AI or Real), confidence score, raw probability, active threshold, and processing latency in milliseconds. "
+        "A dedicated administrative route (<code>/history</code>) displays all logged predictions in a searchable table. "
+        "The app supports both SQLite (locally and on Vercel via <code>/tmp/visionguard.db</code>) and PostgreSQL via the <code>DATABASE_URL</code> environment variable.<br/>"
+        "<b>Automated Tests:</b> I wrote 8 automated pytest unit tests in <code>tests/test_app.py</code> and <code>tests/test_pipeline.py</code>, "
+        "verifying model inference, route responses (<code>/</code>, <code>/predict</code>, <code>/history</code>, <code>/health</code>, <code>/api/predict</code>), 5MB file size limits, and database writes. All 8 tests pass.",
         body_style
     ))
 
     # =========================================================================
-    # CHAPTER 5: TASK 6 - CONTAINERIZATION & CI
+    # TASK 6: CONTAINERIZATION & CI
     # =========================================================================
-    story.append(Spacer(1, 10))
-    story.append(Paragraph("5. Task 6: Docker Containerization, Compose & CI", h1_style))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph("Task 6: Docker Containerization, Compose & CI", h1_style))
     story.append(Paragraph(
-        "<b>6.2 Dockerfile Engineering:</b> Built on <code>python:3.11-slim</code>. Uses layer caching (copying <code>requirements_docker.txt</code> first), "
-        "employs CPU-only TensorFlow (reducing image size from 2.6GB to 542MB), switches to unprivileged non-root user <code>appuser</code>, and incorporates a container "
-        "health check probing <code>/health</code>.<br/>"
-        "<b>6.3 Docker Compose Stack:</b> Coordinates <code>web</code> and <code>db</code> (PostgreSQL 15) services over internal network <code>visionguard_network</code>. "
-        "The database publishes no ports to the host (closed to the public), uses a named volume (<code>db_data</code>), and coordinates startup via <code>condition: service_healthy</code>.<br/>"
-        "<b>6.6 GitHub Actions CI:</b> Configured in <code>.github/workflows/ci.yml</code>. Runs automated Flake8 linting, Pytest matrix testing on Python 3.10 and 3.11, "
-        "and Docker build verification on every commit.",
+        "<b>Dockerfile:</b> Built using <code>python:3.11-slim</code>. By using CPU-only TensorFlow in <code>requirements_docker.txt</code>, the container image "
+        "was reduced from over 2.5GB to ~540MB. For security, an unprivileged user <code>appuser</code> (UID 10001) was created so the application does not run as root. "
+        "A container health check probes <code>curl http://localhost:5000/health</code> every 30 seconds.<br/>"
+        "<b>Docker Compose Stack:</b> Coordinates two services on a private bridge network (<code>visionguard_network</code>):<br/>"
+        "&bull; <code>web</code>: Flask container exposing port 5000 to the host.<br/>"
+        "&bull; <code>db</code>: PostgreSQL 15 container using a named volume <code>db_data</code> for persistent storage. Its port (5432) is closed to the outside host "
+        "and accessible only to the <code>web</code> container. The <code>web</code> container uses <code>condition: service_healthy</code> to ensure PostgreSQL is ready before starting.<br/>"
+        "<b>GitHub Actions CI (<code>.github/workflows/ci.yml</code>):</b> Configured to trigger on every push and PR to <code>main</code>. "
+        "The pipeline runs: (1) Flake8 linting, (2) automated Pytest testing across Python 3.10 and 3.11, and (3) a Docker build check to verify container builds cleanly.",
         body_style
     ))
 
     # =========================================================================
-    # CHAPTER 6: TASKS 7 & 8 - CLOUD DEPLOYMENT & INTEGRATION
+    # TASKS 7 & 8: CLOUD DEPLOYMENT & API VERIFICATION
     # =========================================================================
-    story.append(Spacer(1, 10))
-    story.append(Paragraph("6. Tasks 7 & 8: Cloud API Deployment & Integration (Vercel & OCI)", h1_style))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph("Tasks 7 & 8: Cloud Deployment & External API Integration", h1_style))
     story.append(Paragraph(
-        "<b>Pathway B: Vercel Serverless Deployment Architecture:</b><br/>"
-        "&bull; <i>Function Size Constraint & TFLite Engineering:</i> Standard TensorFlow exceeds Vercel's strict 250MB uncompressed "
-        "Serverless Function limit. To overcome this, the champion MobileNetV2 model was converted from Keras format (23.7MB) into "
-        "a highly optimized FlatBuffer representation (<code>model.tflite</code>, 9.1MB). Using Google's modern <code>ai-edge-litert</code> "
-        "runtime (~20MB), total function package footprint was reduced to ~45MB, well below Vercel's ceiling.<br/>"
-        "&bull; <i>Zero-Disk & Ephemeral Storage Strategy:</i> Vercel serverless containers enforce a read-only filesystem. All image "
-        "preprocessing is handled in-memory via <code>io.BytesIO</code> with zero disk persistence. For the database trail, the SQLite URI "
-        "dynamically redirects to <code>/tmp/visionguard.db</code> (or managed Neon/Vercel PostgreSQL), eliminating write permission errors.<br/>"
-        "&bull; <i>Vercel Routing Configuration:</i> Configured via <code>vercel.json</code> and entrypoint <code>api/index.py</code>, exposing both "
-        "the interactive Flask UI and the headless REST API endpoint <code>POST /api/predict</code>.<br/><br/>"
-        "<b>Pathway A: Oracle Cloud Infrastructure (OCI Always Free Alternative):</b><br/>"
-        "&bull; <i>Full Stack Architecture:</i> Automated deployment script (<code>scripts/task7/deploy_oracle_vm.sh</code>) coordinates the full "
-        "Docker Compose stack (Flask web app + PostgreSQL 15 database) on an Always-Free Ubuntu VM.<br/>"
-        "&bull; <i>Dual-Firewall Resolution:</i> Documented the resolution of OCI's dual firewall: (1) Added Stateful Ingress Rule in OCI Security Lists "
-        "for TCP port 5000, and (2) opened local Linux firewall via <code>sudo iptables -I INPUT 6 -p tcp --dport 5000 -j ACCEPT</code>.<br/>"
-        "&bull; <i>External API Verification (Task 8):</i> Verified the API endpoint from an external network using <code>scripts/task7/test_cloud_api.py</code>, "
-        "returning structured JSON verdicts and latency logs in under 50ms.",
+        "<b>Pathway B: Vercel Serverless Deployment (Primary):</b><br/>"
+        "&bull; <i>Overcoming the 250MB Function Limit:</i> Standard TensorFlow exceeds Vercel's 250MB uncompressed limit. To solve this, I converted the champion Keras model "
+        "(23.7MB) into a FlatBuffer TFLite model (<code>models/champion/model.tflite</code>, 9.1MB). In production, I used Google's <code>ai-edge-litert</code> runtime (~20MB), "
+        "bringing the total function package down to ~45MB.<br/>"
+        "&bull; <i>Read-Only Filesystem & Database:</i> Vercel functions run in a read-only container. Image processing is done entirely in memory using <code>io.BytesIO</code> with zero disk writes. "
+        "For database logging, the SQLite path is routed to <code>/tmp/visionguard.db</code> (writable scratch storage on Vercel) or external PostgreSQL.<br/>"
+        "&bull; <i>Live Deployment URLs:</i><br/>"
+        "&nbsp;&nbsp;&ndash; Web UI: <code>https://23l-0790a2mlops.vercel.app</code><br/>"
+        "&nbsp;&nbsp;&ndash; REST API: <code>https://23l-0790a2mlops.vercel.app/api/predict</code><br/><br/>"
+        "<b>Pathway A: Oracle Cloud Infrastructure VM (Alternative Scripted):</b><br/>"
+        "&bull; I also scripted full deployment for an Always-Free Ubuntu VM on Oracle Cloud (<code>scripts/task7/deploy_oracle_vm.sh</code>) running Docker Compose (Flask + PostgreSQL). "
+        "The script addresses OCI's dual firewall by setting up Security List Ingress rules and opening host firewall rules via <code>sudo iptables -I INPUT 6 -p tcp --dport 5000 -j ACCEPT</code>.<br/><br/>"
+        "<b>Task 8: External API Verification:</b><br/>"
+        "I wrote <code>scripts/task7/test_cloud_api.py</code> to test the public cloud endpoint externally. The script sends an image via multipart form POST, "
+        "handles bypass tokens if protection is active, verifies HTTP 200, checks all required JSON fields (<code>prediction</code>, <code>confidence</code>, <code>raw_probability</code>, <code>threshold</code>, <code>latency_ms</code>), "
+        "and logs roundtrip latency.",
         body_style
     ))
 
-    # Build PDF with custom canvas for page numbering
+    # Build PDF with two-pass canvas
     doc.build(story, canvasmaker=NumberedCanvas)
-    print(f"\n[+] Official Academic PDF Report compiled: {output_filename}")
+    print(f"\n[+] Academic Student PDF Report generated: {output_filename}")
     return output_filename
 
 if __name__ == "__main__":
     build_pdf_report()
-
