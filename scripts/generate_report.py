@@ -144,12 +144,12 @@ def build_pdf_report(output_filename="reports/23L0790_VisionGuard.pdf"):
          Paragraph("<b>Roll Number</b>", body_style), Paragraph("23L-0790", body_style)],
         [Paragraph("<b>Course</b>", body_style), Paragraph("Machine Learning Operations (MLOps)", body_style),
          Paragraph("<b>Project Identifier</b>", body_style), Paragraph("23L0790_A2_Ops", body_style)],
-        [Paragraph("<b>DagsHub Project</b>", body_style), Paragraph("<a href='https://dagshub.com/Shayan-Qadir/23L0790_A2_Ops'>dagshub.com/Shayan-Qadir/23L0790_A2_Ops</a>", body_style),
-         Paragraph("<b>Tracking URI</b>", body_style), Paragraph("https://dagshub.com/Shayan-Qadir/23L0790_A2_Ops.mlflow", body_style)],
-        [Paragraph("<b>Graded Commit Hash</b>", body_style), Paragraph("<code>ea84f59</code>", code_style),
-         Paragraph("<b>Cloud Provider</b>", body_style), Paragraph("Oracle Cloud Infrastructure (OCI Always Free)", body_style)],
-        [Paragraph("<b>Public API URL</b>", body_style), Paragraph("http://150.136.142.88:5000/api/predict (Tested)", body_style),
-         Paragraph("<b>Web App URL</b>", body_style), Paragraph("http://150.136.142.88:5000 (Live)", body_style)]
+        [Paragraph("<b>GitHub Repository</b>", body_style), Paragraph("<a href='https://github.com/Shayan-Qadir/23L-0790_A2_MLOPS'>github.com/Shayan-Qadir/23L-0790_A2_MLOPS</a>", body_style),
+         Paragraph("<b>DagsHub Project</b>", body_style), Paragraph("<a href='https://dagshub.com/Shayan-Qadir/23L0790_A2_Ops'>dagshub.com/Shayan-Qadir/23L0790_A2_Ops</a>", body_style)],
+        [Paragraph("<b>Graded Commit Hash</b>", body_style), Paragraph("<code>984af66</code>", code_style),
+         Paragraph("<b>Cloud Provider</b>", body_style), Paragraph("Vercel Serverless Cloud (Pathway B)", body_style)],
+        [Paragraph("<b>Public API URL</b>", body_style), Paragraph("<a href='https://23l-0790a2mlops.vercel.app/api/predict'>https://23l-0790a2mlops.vercel.app/api/predict</a>", body_style),
+         Paragraph("<b>Live Web App URL</b>", body_style), Paragraph("<a href='https://23l-0790a2mlops.vercel.app'>https://23l-0790a2mlops.vercel.app</a>", body_style)]
     ]
     t_meta = Table(meta_table_data, colWidths=[110, 160, 100, 134])
     t_meta.setStyle(TableStyle([
