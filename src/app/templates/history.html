@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="history-section">
+    <div class="history-header">
+        <div>
+            <h2>Permanent Inference Audit Trail</h2>
+            <p class="history-subtitle">
+                Every request submitted to VisionGuard is recorded queryably in the database.
+            </p>
+        </div>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">New Upload</a>
+    </div>
+
+    <div class="card table-card">
+        {% if logs and logs|length > 0 %}
+        <div class="table-responsive">
+            <table class="audit-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Timestamp (UTC)</th>
+                        <th>Filename</th>
+                        <th>Verdict</th>
+                        <th>Confidence</th>
+                        <th>Latency</th>
+                        <th>Model Version</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in logs %}
+                    <tr>
+                        <td><code>#{{ item.id }}</code></td>
+                        <td>{{ item.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+                        <td class="filename-cell"><code>{{ item.filename }}</code></td>
+                        <td>
+                            <span class="badge {% if item.decision == 'AI-Generated' %}badge-ai{% else %}badge-real{% endif %}">
+                                {% if item.decision == 'AI-Generated' %}🤖 AI{% else %}🎨 Real{% endif %}
+                            </span>
+                        </td>
+                        <td><strong>{{ "%.2f"|format(item.confidence * 100) }}%</strong></td>
+                        <td>{{ "%.1f"|format(item.inference_time_ms) }} ms</td>
+                        <td><span class="model-tag">{{ item.model_version }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No queries recorded in database yet.</p>
+            <a href="{{ url_for('index') }}" class="btn btn-primary">Run First Prediction</a>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+

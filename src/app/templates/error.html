@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="error-section">
+    <div class="card error-card">
+        <div class="error-badge">
+            <span class="error-code">{{ error_code }}</span>
+        </div>
+        <h2 class="error-title">{{ error_title }}</h2>
+        <p class="error-message">{{ error_message }}</p>
+        
+        <div class="error-details">
+            <p><strong>Guidance:</strong> {{ error_guidance }}</p>
+        </div>
+
+        <div class="error-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-primary">Return to Upload</a>
+            <a href="{{ url_for('history') }}" class="btn btn-secondary">View History</a>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

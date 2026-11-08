@@ -76,3 +76,4 @@ Executed via `scripts/task1/run_toy_dvc.py`:
    * **Clone and Bandwidth Inefficiency:** Every developer or CI server running `git clone` downloads the entire repository history. Storing datasets in Git causes clones to become hundreds of megabytes or gigabytes, resulting in slow operations and frequent checkout timeouts.
    * **Platform Constraints:** Major Git hosts enforce strict hard limits (e.g., GitHub rejects individual files $>100$ MB and degrades above $2$ GB repositories).
    * **MLOps Decoupling:** DVC solves this by decoupling metadata from storage: Git versions the tiny text pointer (`.dvc`), while the large binaries reside in scalable object storage (DagsHub/S3/GCS), pullable on-demand via `dvc pull`.
+

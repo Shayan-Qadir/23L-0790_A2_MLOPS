@@ -1,0 +1,60 @@
+services:
+  # Database Service (PostgreSQL)
+  # Uses named volume, healthcheck, closed external port
+  db:
+    image: postgres:15-alpine
+    container_name: visionguard_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-visionguard_db}
+      POSTGRES_USER: ${POSTGRES_USER:-visionguard_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-visionguard_secure_password_2026}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - visionguard_internal_net
+    # Port is NOT published to host - closed to the outside per Sub-task 6.3!
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-visionguard_user} -d ${POSTGRES_DB:-visionguard_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Web Application Service (Flask)
+  # Waits for database readiness through healthcheck condition
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: visionguard_web
+    restart: unless-stopped
+    environment:
+      FLASK_ENV: production
+      FLASK_DEBUG: 0
+      PORT: 5000
+      CONFIDENCE_THRESHOLD: ${CONFIDENCE_THRESHOLD:-0.50}
+      MODEL_PATH: models/champion/model.keras
+      DATABASE_URL: postgresql://${POSTGRES_USER:-visionguard_user}:${POSTGRES_PASSWORD:-visionguard_secure_password_2026}@db:5432/${POSTGRES_DB:-visionguard_db}
+    volumes:
+      # Mounted Champion Model: allows updating model weights without rebuilding image
+      - ./models/champion:/app/models/champion:ro
+    ports:
+      - "5000:5000"
+    networks:
+      - visionguard_internal_net
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:
+    name: visionguard_db_data
+
+networks:
+  visionguard_internal_net:
+    name: visionguard_network
+    driver: bridge
+

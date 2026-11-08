@@ -1,0 +1,11 @@
+tensorflow-cpu>=2.15.0
+keras
+flask
+flask-sqlalchemy
+psycopg2-binary
+pillow
+numpy
+pandas
+python-dotenv
+requests
+

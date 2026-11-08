@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}VisionGuard - AI vs Real Image Classification{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-container">
+            <a href="{{ url_for('index') }}" class="logo">
+                <span class="logo-shield">🛡️</span>
+                <span class="logo-text">Vision<strong>Guard</strong></span>
+            </a>
+            <nav class="nav-menu">
+                <a href="{{ url_for('index') }}" class="nav-link {% if request.path == '/' %}active{% endif %}">Inspect Image</a>
+                <a href="{{ url_for('history') }}" class="nav-link {% if request.path == '/history' %}active{% endif %}">Audit Trail (Database)</a>
+                <a href="{{ url_for('health') }}" target="_blank" class="nav-link badge-health">Health Status</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="content-container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="flash-alert flash-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-container">
+            <p>VisionGuard MLOps Platform &bull; Project: <code>23L0790_A2_Ops</code></p>
+            <p class="subtext">Deep Learning Classifier: MobileNetV2 Transfer Learning &bull; SQLite Audit Trail</p>
+        </div>
+    </footer>
+</body>
+</html>
+

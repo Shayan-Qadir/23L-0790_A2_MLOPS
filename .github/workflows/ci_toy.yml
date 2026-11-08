@@ -1,0 +1,33 @@
+name: Toy CI Matrix Workflow
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/task6/**'
+
+jobs:
+  matrix-build:
+    name: Toy Python Matrix
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Pytest
+        run: pip install pytest
+
+      - name: Run Toy Test Suite
+        run: |
+          # Green run passes cleanly
+          python -m pytest scripts/task6/test_toy.py -v
+

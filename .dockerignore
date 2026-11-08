@@ -1,0 +1,37 @@
+# Git & Environment
+.git/
+.gitignore
+.gitattributes
+.venv/
+env/
+venv/
+ENV/
+
+# Secrets & Local Config
+.env
+*.pem
+*.key
+
+# Data & Cache (tracked by DVC)
+data/
+toy_dvc_lab/
+toy_dvc_remote/
+.dvc/cache/
+.dvc/tmp/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.ipynb_checkpoints
+.pytest_cache/
+
+# MLflow and Tuning artifacts
+mlruns/
+tuner_dir/
+mlflow.db
+
+# Documentation & Raw specs
+Assignment 2.pdf
+reports/figures/
+

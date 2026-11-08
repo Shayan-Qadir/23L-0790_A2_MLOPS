@@ -152,3 +152,4 @@ def generate_visual_eda(audit_csv="reports/tables/dataset_audit.csv", output_dir
 
 if __name__ == "__main__":
     generate_visual_eda()
+

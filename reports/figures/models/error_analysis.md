@@ -1,0 +1,17 @@
+# Task 2.6: Error Analysis - 10 Misclassified Images
+
+|   Index | Filename                                                                         | True Label   | Predicted   |   Confidence | Hypothesis                                                                                                |
+|--------:|:---------------------------------------------------------------------------------|:-------------|:------------|-------------:|:----------------------------------------------------------------------------------------------------------|
+|       1 | 196027s_art_of_cow_getting_abducted_by_UFO_in_midwest.jpg                        | AI           | Real        |        0.119 | Realistic photographic textures, complex human anatomy, or low diffusion artifacts confused the detector. |
+|       2 | railroad-163518_640.jpg                                                          | Real         | AI          |        0.504 | Digital smoothing or vibrant saturation mimics synthetic generative prompt styles.                        |
+|       3 | Gopnik_ai_art.jpg                                                                | AI           | Real        |        0.268 | Realistic photographic textures, complex human anatomy, or low diffusion artifacts confused the detector. |
+|       4 | Personal-Crowd-Silhouettes-Human-Group-Of-People-2045498.jpg                     | Real         | AI          |        0.294 | Digital smoothing or vibrant saturation mimics synthetic generative prompt styles.                        |
+|       5 | scenery.jpg                                                                      | Real         | AI          |        0.797 | Digital smoothing or vibrant saturation mimics synthetic generative prompt styles.                        |
+|       6 | 20230807-ashleyfortner-002-asian-elephant-trong-nhi-linh-teaser.jpg              | Real         | AI          |        0.634 | Digital smoothing or vibrant saturation mimics synthetic generative prompt styles.                        |
+|       7 | 1013032_credit_wspa-jiri_rezac.jpg                                               | Real         | AI          |        0.382 | Digital smoothing or vibrant saturation mimics synthetic generative prompt styles.                        |
+|       8 | mountainpygmypossum_science_BCDJ6K.jpg                                           | Real         | AI          |        0.741 | Digital smoothing or vibrant saturation mimics synthetic generative prompt styles.                        |
+|       9 | -man-sits-with-a-woman-on-her-phone-at-a-table-while-looking-at-a-computer_l.jpg | Real         | AI          |        0.696 | Digital smoothing or vibrant saturation mimics synthetic generative prompt styles.                        |
+|      10 | wers-blooming-green-grass-spring-concept-generative-ai-technology-free-photo.jpg | Real         | AI          |        0.358 | Digital smoothing or vibrant saturation mimics synthetic generative prompt styles.                        |
+
+### Analytical Discussion:
+False alarms predominantly arise from authentic contemporary digital artworks featuring glossy surfaces, high saturation, and hyper-clean vector gradients that resemble diffusion rendering engines. Conversely, missed AI detections occur on high-fidelity portraiture or traditional oil-paint style simulations where diffusion artifacts (such as asymmetric pupils or blurred backgrounds) are obscured by low resolution.
