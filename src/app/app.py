@@ -20,8 +20,12 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "visionguard-secret-key-23L0790")
 
 # Database Configuration
-db_url = os.getenv("DATABASE_URL", "sqlite:///visionguard.db")
-os.makedirs(app.instance_path, exist_ok=True)
+if os.environ.get("VERCEL"):
+    db_url = os.getenv("DATABASE_URL", "sqlite:////tmp/visionguard.db")
+else:
+    db_url = os.getenv("DATABASE_URL", "sqlite:///visionguard.db")
+    os.makedirs(app.instance_path, exist_ok=True)
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
