@@ -1,0 +1,17 @@
+tensorflow>=2.15.0
+mlflow
+dagshub
+dvc
+pandas
+numpy
+pillow
+matplotlib
+seaborn
+scikit-learn
+keras-tuner
+flask
+requests
+python-dotenv
+flake8
+pytest
+

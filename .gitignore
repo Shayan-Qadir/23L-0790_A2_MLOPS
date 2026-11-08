@@ -1,1 +1,83 @@
+# Environments
+.venv/
+env/
+venv/
+ENV/
+
+# Toy DVC lab
+toy_dvc_lab/
+toy_dvc_remote/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.ipynb_checkpoints
+
+# Environment variables & secrets
+.env
+!.env.example
+
+# Large Data (tracked by DVC)
+data/processed/
+
+# MLflow local runs
+mlruns/
+.mlflow/
+
+# Keras Tuner
+tuner_dir/
+
+# Database
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# PDF specification (optional keep or ignore)
+# Environments
+.venv/
+env/
+venv/
+ENV/
+
+# Toy DVC lab
+toy_dvc_lab/
+toy_dvc_remote/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.ipynb_checkpoints
+
+# Environment variables & secrets
+.env
+!.env.example
+
+# Large Data (tracked by DVC)
+data/processed/
+
+# MLflow local runs
+mlruns/
+.mlflow/
+
+# Keras Tuner
+tuner_dir/
+
+# Database
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# PDF specification (optional keep or ignore)
 Assignment 2.pdf
+
+# OS generated
+Thumbs.db
+.DS_Store
+
+# OS generated
+Thumbs.db
+.DS_Store
